@@ -1,0 +1,13 @@
+editables:
+  VertexDisjointPath/develop@VertexDisjointPath/testing:
+    path: ../VertexDisjointPath
+  cmakeHelper/0.1@designPattern/testing:
+    path: ../cmakeHelper
+
+workspace_generator: cmake
+
+layout: layout
+
+# TODO until creating a main root and then requires all subfolders inside it
+root:
+  - VertexDisjointPath/develop@VertexDisjointPath/testing

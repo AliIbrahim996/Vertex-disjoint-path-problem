@@ -1,0 +1,3 @@
+[submodule "cmakeHelper"]
+	path = cmakeHelper
+	url = https://github.com/AliIbrahim996/cmakeHelper.git
