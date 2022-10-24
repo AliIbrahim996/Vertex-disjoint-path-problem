@@ -27,9 +27,9 @@ namespace VDP
 			}
 		}
 	}
-	int AdjListGraph::getCapacity(int u, int v)
+	const int AdjListGraph::getCapacity(int u, int v) const
 	{
-		for (Edge e : graph_[u])
+		for (const Edge& e : graph_[u])
 		{
 			if (e.dest == v)
 			{
@@ -48,7 +48,7 @@ namespace VDP
 			}
 		}
 	}
-	std::unique_ptr<AdjListGraph> AdjListGraph::createResidualGraph()
+	std::unique_ptr<AdjListGraph> AdjListGraph::createResidualGraph() const
 	{
 		std::unique_ptr<AdjListGraph> residualGraph{ std::make_unique<AdjListGraph>(size_) };
 		for (int i = 0; i < size_; i++)
@@ -60,9 +60,25 @@ namespace VDP
 		}
 		return std::move(residualGraph);
 	}
+	int AdjListGraph::getIndex(int u, int v) const
+	{
+			for (const Edge& i : graph_[u]) 
+			{
+				if (i.dest == v) 
+				{
+					const auto& idx = std::find(graph_[u].cbegin(), graph_[u].cend(), i);
+					if (idx != graph_[u].end()) 
+					{
+						return static_cast<int>(std::distance(graph_[u].cbegin(), idx));
+					}
+					
+				}
+			}
+			return -1;
+	}
 	bool AdjListGraph::checkEdge(int u, int v)
 	{
-		for (Edge e : graph_[u])
+		for (const Edge& e : graph_[u])
 		{
 			if (e.dest == v)
 				return true;

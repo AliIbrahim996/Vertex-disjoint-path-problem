@@ -9,6 +9,7 @@
 #include <list>
 #include <vector>
 #include <memory>
+#include <algorithm>
 
 #include "Edge.h"
 
@@ -17,7 +18,7 @@ namespace VDP
 	using Graph = std::vector<std::list<Edge>>;
 
 	class AdjListGraph
-	{	
+	{
 	public:
 		//!
 		AdjListGraph(int size);
@@ -29,16 +30,28 @@ namespace VDP
 		void zeroFlow();
 
 		//!
-		int getCapacity(int u, int v);
+		const int getCapacity(int u, int v) const;
 
 		//!
 		void updateWeight(int s, int dest, int w);
 
 		//!
-		std::unique_ptr<AdjListGraph> createResidualGraph();
+		std::unique_ptr<AdjListGraph> createResidualGraph() const;
 
 		//!
 		Graph& graph() { return graph_; }
+
+		//!
+		const Graph& getGraph() const { return graph_; }
+
+		//!
+		const std::size_t getSize() const { return size_; }
+
+		//!
+		int getIndex(int u, int v) const;
+
+		//!
+		void setSize(const int size) { size_ = size; }
 
 	private:
 

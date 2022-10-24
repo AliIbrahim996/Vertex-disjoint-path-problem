@@ -31,6 +31,11 @@ namespace VDP
 		{
 			weight = w;
 		}
+
+		friend bool operator == (const Edge& lhs, const Edge& rhs) 
+		{
+			return (lhs.capacity == rhs.capacity) && (lhs.dest == rhs.dest) && (lhs.weight == rhs.weight);
+		};
 	};
 
 }
