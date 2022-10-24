@@ -1,7 +1,6 @@
 //!
-//! 
-//! 
-
+//!
+//!
 
 #ifndef VDP_FORD_FULKERSON_H
 #define VDP_FORD_FULKERSON_H
@@ -18,8 +17,8 @@ namespace VDP
 	{
 		namespace
 		{
-			template<typename Algo>
-			bool findPath(const int src, const int dest, std::vector<std::list<int>>& parent, const std::size_t size, const Graph& graph)
+			template <typename Algo>
+			bool findPath(const int src, const int dest, std::vector<std::list<int>> &parent, const std::size_t size, const Graph &graph)
 			{
 				switch (Alg)
 				{
@@ -33,34 +32,9 @@ namespace VDP
 					return false;
 				}
 			}
-		}
 
-		void findMinCap(const int src, const int sink, std::vector<std::list<int>>& parent, int& min, AdjListGraph& rGraph)
-		{
-			int de = 0;
-			for (int currNode{ sink }; currNode != src; currNode = de)
+			void updateWeight(Edge &e1, Edge &e2, AdjListGraph &rGraph, const int min, const int de)
 			{
-				de = parent[currNode].front();
-				min = std::min(min, rGraph.getCapacity(de, currNode));
-			}
-		};
-
-		void updateFlow(const int src, const int sink, std::vector<std::list<int>>& parent, const int min, AdjListGraph& nGraph, AdjListGraph& rGraph)
-		{
-			int de = 0;
-			for (int currNode{ sink }; currNode != src; currNode = de)
-			{
-				de = parent[currNode].front();
-				int idx{ nGraph.getIndex(de,currNode) };
-
-				auto iter1 = nGraph.graph().at(de).begin();
-				auto iter2 = rGraph.graph().at(de).begin();
-
-				std::advance(iter1, idx);
-				std::advance(iter2, idx);
-
-				auto& e1 = *iter1;
-				auto& e2 = *iter2;
 				if (e1.weight > 0)
 				{
 					e1.capacity += min;
@@ -72,25 +46,74 @@ namespace VDP
 					e1.capacity -= min;
 				}
 			}
+		}
+
+		void findMinCap(const int src, const int sink, std::vector<std::list<int>> &parent, int &min, AdjListGraph &rGraph)
+		{
+			int de = 0;
+			for (int currNode{sink}; currNode != src; currNode = de)
+			{
+				de = parent[currNode].front();
+				min = std::min(min, rGraph.getCapacity(de, currNode));
+			}
 		};
 
-		template<typename Algo>
-		inline int runFordFulkerson(AdjListGraph& nGraph, AdjListGraph& rGraph, const int src, const int sink)
+		template <bool solveVDP>
+		void updateFlow(const int src, const int sink, std::vector<std::list<int>> &parent, const int min, AdjListGraph &nGraph, AdjListGraph &rGraph)
 		{
-			int maxFlow{ 0 };
-			std::vector<std::list<int>>& parent;
-			const std::size_t size{ nGraph.getSize() };
+			int de = 0;
+			for (int currNode{sink}; currNode != src; currNode = de)
+			{
+				de = parent[currNode].front();
+				int idx{nGraph.getIndex(de, currNode)};
+
+				auto iter1 = nGraph.graph().at(de).begin();
+				auto iter2 = rGraph.graph().at(de).begin();
+
+				std::advance(iter1, idx);
+				std::advance(iter2, idx);
+
+				auto &e1 = *iter1;
+				auto &e2 = *iter2;
+				if (solveVDP)
+				{
+					if (e1.weight != -1)
+					{
+						updateWeight(e1, e2, rGraph, min, de);
+					}
+				}
+				else
+				{
+					updateWeight(e1, e2, rGraph, min, de);
+				}
+			}
+		};
+
+		template <typename Algo, bool solveVDP>
+		inline int runFordFulkerson(AdjListGraph &nGraph, AdjListGraph &rGraph, const int src, const int sink)
+		{
+			int maxFlow{0};
+			std::vector<std::list<int>> &parent;
+			const std::size_t size{nGraph.getSize()};
 			parent.reserve(size);
 			while (findPath<Algo>(src, sink, parent, size, rGraph.getGraph()))
 			{
 				int min = INT_MAX;
 
 				findMinCap(src, sink, parent, min, rGraph);
-				updateFlow(src, sink, parent, min, nGraph, rGraph);
+				if (solveVDP)
+				{
+					if (min == -1)
+					{
+						min *= -1;
+					}
+				}
+				updateFlow<solveVDP>(src, sink, parent, min, nGraph, rGraph);
 				maxFlow += min;
 			}
 			return maxFlow;
 		}
+
 	}
 }
 #endif // !VDP_FORD_FULKERSON_H
