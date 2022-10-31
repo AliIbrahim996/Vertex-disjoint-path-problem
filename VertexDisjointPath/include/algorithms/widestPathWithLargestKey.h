@@ -1,5 +1,5 @@
-//!
-//! 
+//! @copyright 2022 All rights reserved.
+//! @author Ali Ibrahim
 //! 
 
 #ifndef VPD_ALGORITHM_WIDEST_PATH_WITH_LARGEST_KEY_H
@@ -16,6 +16,8 @@ namespace VDP
 		namespace
 		{
 			//!
+			//! 
+			//! 
 			int findMaxKey(const std::vector<int>& keys, const bool* status, const std::size_t size)
 			{
 				int maxVertex = INT_MIN,maxX= INT_MIN;
@@ -33,6 +35,8 @@ namespace VDP
 		}
 
 		//!
+		//! 
+		//! 
 		bool findWidestPath(const int src, const int dest, std::vector<std::list<int>>& parent, const std::size_t size, const Graph& graph)
 		{
 			bool* status = new bool[size];

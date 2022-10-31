@@ -1,7 +1,6 @@
-//!
+//! @copyright 2022 All rights reserved.
+//! @author Ali Ibrahim
 //! 
-//! 
-
 
 #ifndef VDP_ALGORITHMS_H
 #define VDP_ALGORITHMS_H

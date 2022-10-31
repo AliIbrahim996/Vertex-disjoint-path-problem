@@ -1,6 +1,5 @@
-//!
-//! 
-//! 
+//! @copyright 2022 All rights reserved.
+//! @author Ali Ibrahim
 //! 
 
 #ifndef VDP_ADJ_LIST_GRAPH_H
