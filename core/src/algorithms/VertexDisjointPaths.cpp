@@ -1,4 +1,4 @@
-//! @copyright 2022-2026 All rights reserved.
+//! @copyright 2022-2026 Ali Ibrahim. Licensed under the MIT License (see LICENSE).
 //! @author Ali Ibrahim
 //!
 //! Maximum number of s-t paths that share no vertex other than s and t.

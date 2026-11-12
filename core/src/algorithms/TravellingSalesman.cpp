@@ -1,4 +1,4 @@
-//! @copyright 2022-2026 All rights reserved.
+//! @copyright 2022-2026 Ali Ibrahim. Licensed under the MIT License (see LICENSE).
 //! @author Ali Ibrahim
 //!
 //! Travelling salesman on the drawn (undirected) graph: a tour may only use edges that exist.

@@ -114,3 +114,7 @@ the pseudocode line and the explanation. Full snapshots are what make stepping b
 3. Add the source file to `CMakeLists.txt` and a test to `tests/tests.cpp`.
 
 The page picks the new algorithm up from the catalogue; no JavaScript changes are needed.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
