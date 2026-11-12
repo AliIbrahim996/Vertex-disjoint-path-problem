@@ -1,8 +1,9 @@
+# Build output
 /build*/
-/package*/
-/*info.*
-vs
+/web/wasm/
 
-# IDE files
+# IDE / tooling
 .vscode/
 .idea/
+.vs/
+.claude/
