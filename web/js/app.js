@@ -62,8 +62,10 @@
       'scale ' + HEURISTIC_SCALE,
     ];
     for (const [key, value] of Object.entries(state.options)) lines.push(key + ' ' + value);
-    for (const n of g.nodes) lines.push(`node ${Math.round(n.x)} ${Math.round(n.y)} ${n.label}`);
-    for (const e of g.edges) lines.push(`edge ${e.u} ${e.v} ${e.w}`);
+    if (state.algo.usesGraph) {
+      for (const n of g.nodes) lines.push(`node ${Math.round(n.x)} ${Math.round(n.y)} ${n.label}`);
+      for (const e of g.edges) lines.push(`edge ${e.u} ${e.v} ${e.w}`);
+    }
     return lines.join('\n') + '\n';
   }
 
@@ -271,7 +273,7 @@
   }
 
   svg.addEventListener('pointerdown', event => {
-    if (state.trace || event.button !== 0) return;
+    if (state.trace || event.button !== 0 || !state.algo.usesGraph) return;
     closeWeightEditor(true);
     const target = hit(event);
     const point = toCanvas(event);
@@ -379,9 +381,22 @@
   // What to draw right now: the graph being edited, or one step of the simulation.
   function currentPicture() {
     const g = state.graph;
+    if (!state.trace && !state.algo.usesGraph) {
+      // An empty board of the chosen size until the puzzle is run.
+      const n = Number(state.options.size) || 8;
+      return {
+        editable: false,
+        layout: 'board',
+        nodes: Array.from({ length: n * n }, (_, i) => ({ label: '', x: i % n, y: Math.floor(i / n), state: 'idle', sub: '' })),
+        edges: [],
+        source: -1,
+        target: -1,
+      };
+    }
     if (!state.trace) {
       const algo = state.algo;
       return {
+        layout: 'graph',
         editable: true,
         directed: g.directed,
         nodes: g.nodes.map(n => ({ ...n, state: 'idle', sub: '' })),
@@ -395,6 +410,7 @@
     const view = trace.views[step.view];
     return {
       editable: false,
+      layout: view.layout,
       directed: view.directed,
       nodes: view.nodes.map((n, i) => ({ ...n, state: trace.nodeStates[step.ns[i]], sub: step.nl[i] })),
       edges: view.edges.map((e, i) => ({
@@ -406,8 +422,33 @@
     };
   }
 
+  function renderBoard(picture) {
+    const n = Math.round(Math.sqrt(picture.nodes.length));
+    const size = Math.floor((HEIGHT - 60) / n);
+    const left = (WIDTH - size * n) / 2;
+    const top = (HEIGHT - size * n) / 2 - 8;
+    let html = '';
+    picture.nodes.forEach(node => {
+      const x = left + node.x * size, y = top + node.y * size;
+      const shade = (node.x + node.y) % 2 ? 'dark' : 'light';
+      html += `<g class="square ${shade} n-${node.state}"><title>${escapeHtml(node.label)}</title>`
+        + `<rect x="${x}" y="${y}" width="${size}" height="${size}"/>`
+        + (node.sub ? `<text x="${x + size / 2}" y="${y + size / 2}" font-size="${Math.round(size * 0.66)}">${escapeHtml(node.sub)}</text>` : '')
+        + '</g>';
+    });
+    for (let c = 0; c < n; c++) html += `<text class="coord" x="${left + (c + 0.5) * size}" y="${top + n * size + 16}">${String.fromCharCode(97 + c)}</text>`;
+    for (let r = 0; r < n; r++) html += `<text class="coord" x="${left - 14}" y="${top + (r + 0.5) * size}">${n - r}</text>`;
+    html += `<rect class="frame" x="${left}" y="${top}" width="${size * n}" height="${size * n}"/>`;
+    svg.innerHTML = html;
+    svg.classList.remove('editable');
+  }
+
   function renderGraph() {
     const picture = currentPicture();
+    if (picture.layout === 'board') {
+      renderBoard(picture);
+      return;
+    }
     const { nodes, edges } = picture;
 
     // Shrink the vertices when they sit close together (the split network of vertex-disjoint paths).
@@ -482,15 +523,19 @@
       step.ns.forEach(s => nodeStates.add(trace.nodeStates[s]));
       step.es.forEach(s => edgeStates.add(trace.edgeStates[s]));
     }
+    const words = { node: {}, edge: {}, ...trace.legend };
+    const board = trace.views.some(view => view.layout === 'board');
     let html = '';
     for (const [name, text] of Object.entries(NODE_LEGEND)) {
-      if (nodeStates.has(name)) {
-        html += `<li><svg viewBox="0 0 26 16"><g class="node n-${name}"><circle class="body" cx="13" cy="8" r="6.5"/></g></svg>${text}</li>`;
-      }
+      if (!nodeStates.has(name)) continue;
+      const swatch = board
+        ? `<g class="square light n-${name}"><rect x="6" y="1" width="14" height="14"/></g>`
+        : `<g class="node n-${name}"><circle class="body" cx="13" cy="8" r="6.5"/></g>`;
+      html += `<li><svg viewBox="0 0 26 16">${swatch}</svg>${escapeHtml(words.node[name] || text)}</li>`;
     }
     for (const [name, text] of Object.entries(EDGE_LEGEND)) {
       if (edgeStates.has(name)) {
-        html += `<li><svg viewBox="0 0 26 16"><g class="edge e-${name}"><path class="line" d="M2,8 L24,8"/></g></svg>${text}</li>`;
+        html += `<li><svg viewBox="0 0 26 16"><g class="edge e-${name}"><path class="line" d="M2,8 L24,8"/></g></svg>${escapeHtml(words.edge[name] || text)}</li>`;
       }
     }
     if ([...edgeStates].some(s => /^path\d$/.test(s))) {
@@ -506,7 +551,7 @@
     const step = trace ? trace.steps[state.step] : null;
 
     // Pseudocode comes from the core with the trace; before the first run there is none yet.
-    const code = trace ? trace.pseudocode : state.pseudocodeCache[algo.id] || [];
+    const code = trace ? trace.pseudocode : pseudocodeFor(algo);
     $('pseudocode').innerHTML = code.length
       ? code.map((line, i) => `<li class="${step && step.line === i ? 'active' : ''}">${escapeHtml(line)}</li>`).join('')
       : '<li>Run the simulation to see the pseudocode.</li>';
@@ -554,15 +599,17 @@
     $('algoDescription').textContent = algo.description;
     $('algoComplexity').textContent = algo.complexity;
     $('directed').checked = g.directed;
+    $('graphCard').hidden = !algo.usesGraph;
     $('sample').value = state.sampleId || '';
     $('geometric').hidden = !algo.usesWeights;
 
     for (const button of document.querySelectorAll('[data-tool]')) {
-      button.classList.toggle('active', !tracing && button.dataset.tool === state.tool);
-      button.disabled = tracing;
+      button.classList.toggle('active', !tracing && algo.usesGraph && button.dataset.tool === state.tool);
+      button.disabled = tracing || !algo.usesGraph;
     }
     $('edit').hidden = !tracing;
-    $('hint').textContent = tracing ? 'Simulation running. Go back to editing to change the graph.'
+    $('hint').textContent = !algo.usesGraph ? (tracing ? 'Go back to choose another board size.' : 'This puzzle has its own board. Choose a size and press “Run simulation”.')
+      : tracing ? 'Simulation running. Go back to editing to change the graph.'
       : HINTS[state.tool] + (algo.usesWeights ? ` Click an edge to change its ${algo.weightName}.` : '');
 
     // Source / target / option pickers for the chosen algorithm.
@@ -591,6 +638,22 @@
     renderSide();
     renderPlayer();
     renderLegend();
+  }
+
+  // Pseudocode to show before the first run. It can depend on the options (TSP method, max-flow
+  // strategy), so ask the core with the current options on a tiny input: a triangle, and a 1 x 1
+  // board for the queens. Cached per algorithm and option combination.
+  const pseudocodeCache = new Map();
+  function pseudocodeFor(algo) {
+    const options = Object.entries(state.options).map(([key, value]) => `${key} ${value}\n`).join('');
+    const key = algo.id + '|' + options;
+    if (!pseudocodeCache.has(key)) {
+      const probe = `algorithm ${algo.id}\ndirected 0\nsource 0\ntarget 1\n${options}size 1\n`
+        + 'node 0 0 A\nnode 100 0 B\nnode 50 80 C\nedge 0 1 1\nedge 1 2 1\nedge 2 0 1\n';
+      const result = JSON.parse(state.core.ccall('algolab_run', 'string', ['string'], [probe]));
+      pseudocodeCache.set(key, result.pseudocode || []);
+    }
+    return pseudocodeCache.get(key);
   }
 
   // ---- Playback ------------------------------------------------------------------------------
@@ -639,6 +702,12 @@
     state.algo = state.catalog.find(a => a.id === id);
     state.options = {};
     for (const option of state.algo.options) state.options[option.key] = option.choices[0].id;
+    if (!state.algo.usesGraph) {
+      clearTrace();
+      showError('');
+      renderAll();
+      return;
+    }
     // Show the example that suits the algorithm, unless the user is working on a graph of their own.
     if (!state.edited) {
       loadSample(window.ALGOLAB_DEFAULT_SAMPLE[id] || 'basic');
@@ -720,16 +789,6 @@
     } catch (error) {
       fatal('<b>The C++ core failed to load.</b> ' + escapeHtml(error && error.message ? error.message : error));
       return;
-    }
-
-    // Ask the core for every algorithm's pseudocode once, on a two-vertex graph, so it can be
-    // shown before the first run.
-    state.pseudocodeCache = {};
-    for (const algo of state.catalog) {
-      const options = algo.options.map(o => `${o.key} ${o.choices[0].id}\n`).join('');
-      const probe = `algorithm ${algo.id}\ndirected 1\nsource 0\ntarget 1\n${options}node 0 0 A\nnode 100 0 B\nedge 0 1 1\n`;
-      const result = JSON.parse(state.core.ccall('algolab_run', 'string', ['string'], [probe]));
-      state.pseudocodeCache[algo.id] = result.pseudocode || [];
     }
 
     const categories = [...new Set(state.catalog.map(a => a.category))];

@@ -19,7 +19,9 @@ add_library(algolab_core STATIC
   core/src/algorithms/CycleDetection.cpp
   core/src/algorithms/BestFirst.cpp
   core/src/algorithms/MaxFlow.cpp
-  core/src/algorithms/VertexDisjointPaths.cpp)
+  core/src/algorithms/VertexDisjointPaths.cpp
+  core/src/algorithms/EightQueens.cpp
+  core/src/algorithms/TravellingSalesman.cpp)
 target_include_directories(algolab_core PUBLIC core/include)
 if(MSVC)
   target_compile_options(algolab_core PRIVATE /W4 /utf-8)

@@ -81,9 +81,33 @@ window.ALGOLAB_SAMPLES = [
       ...(i < 12 ? [[i, i + 4]] : []),
     ]),
   },
+  {
+    id: 'cities',
+    name: 'Seven cities, every pair connected',
+    directed: false,
+    geometric: true,
+    source: 0, target: -1,
+    nodes: [['A', 110, 300], ['B', 250, 110], ['C', 330, 420], ['D', 470, 250], ['E', 640, 90], ['F', 610, 430], ['G', 800, 270]],
+    edges: completeGraph(7),
+  },
+  {
+    id: 'roads',
+    name: 'Cities with some roads missing',
+    directed: false,
+    geometric: true,
+    source: 0, target: -1,
+    nodes: [['A', 110, 260], ['B', 280, 100], ['C', 300, 420], ['D', 470, 260], ['E', 640, 100], ['F', 650, 420], ['G', 810, 260]],
+    edges: [[0, 1], [0, 2], [0, 3], [1, 3], [1, 4], [2, 3], [2, 5], [3, 4], [3, 5], [4, 6], [5, 6], [3, 6]],
+  },
 ];
+
+function completeGraph(n) {
+  const edges = [];
+  for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) edges.push([a, b]);
+  return edges;
+}
 
 // The example that shows each algorithm at its most instructive.
 window.ALGOLAB_DEFAULT_SAMPLE = {
-  bfs: 'basic', dfs: 'basic', cycle: 'cycle', dijkstra: 'map', astar: 'map', greedy: 'trap', maxflow: 'flow', vdp: 'hub',
+  bfs: 'basic', dfs: 'basic', cycle: 'cycle', dijkstra: 'map', astar: 'map', greedy: 'trap', maxflow: 'flow', vdp: 'hub', tsp: 'cities',
 };

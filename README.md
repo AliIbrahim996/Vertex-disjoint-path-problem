@@ -9,7 +9,7 @@ browser with nothing to install. The page is only an editor and a player: it sen
 the C++ core and plays back the steps the core returns.
 
 This repository started as a solver for the vertex-disjoint path problem. That solver is still
-here, now as one of eight simulations.
+here, now as one of ten simulations.
 
 ## Algorithms
 
@@ -23,6 +23,8 @@ here, now as one of eight simulations.
 | Greedy best-first (heuristic search) | how following `h` alone can miss the optimum, with the true optimum for comparison |
 | Maximum flow | augmenting paths (BFS, DFS or widest path), bottlenecks, rerouted flow, the minimum cut |
 | Vertex-disjoint paths | the vertex-splitting reduction to max-flow, then the resulting paths on the original graph |
+| Eight queens (N-queens, 3–8) | backtracking on a chessboard: attacked squares, conflicts, and every queen that gets taken back |
+| Travelling salesman | exact branch and bound (with pruning by a lower bound), nearest neighbour, and 2-opt repair, compared with the optimum |
 
 The heuristics of A\* and greedy search are measured on the canvas (straight-line or Manhattan
 distance to the target), so dragging a vertex changes the heuristic. "Weights = lengths" sets every

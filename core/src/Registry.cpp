@@ -22,6 +22,21 @@ namespace algolab
 			{ "dfs", "Any (DFS, Ford-Fulkerson)" },
 			{ "widest", "Widest path" } } };
 
+		const Option sizeOption{ "size", "Board size", {
+			{ "8", "8 \xC3\x97 8 (eight queens)" },
+			{ "4", "4 \xC3\x97 4" },
+			{ "5", "5 \xC3\x97 5" },
+			{ "6", "6 \xC3\x97 6" },
+			{ "7", "7 \xC3\x97 7" },
+			{ "3", "3 \xC3\x97 3 (no solution)" } } };
+
+		const Option methodOption{ "method", "Method", {
+			{ "exact", "Exact: branch and bound" },
+			{ "nearest", "Nearest neighbour (greedy)" },
+			{ "2opt", "Nearest neighbour + 2-opt" } } };
+
+		const int maxCities = 10;
+
 		std::vector<AlgorithmInfo> buildCatalog()
 		{
 			return {
@@ -65,7 +80,18 @@ namespace algolab
 					"exit joined by an edge of capacity 1, give every edge capacity 1, and compute a maximum flow: each unit of flow is one "
 					"path and no two units can squeeze through the same vertex. By Menger's theorem the answer also equals the fewest "
 					"vertices whose removal disconnects s from t (when s and t are not adjacent).",
-					"O(V E) with augmenting paths", Need::Required, Need::Required, false, "", { strategyOption }, &runVertexDisjointPaths } };
+					"O(V E) with augmenting paths", Need::Required, Need::Required, false, "", { strategyOption }, &runVertexDisjointPaths },
+				{ "queens", "Eight queens (backtracking)", "Combinatorial search",
+					"Place N queens on an N \xC3\x97 N board so that no two share a row, a column or a diagonal. Backtracking fills the "
+					"board one row at a time and tries each column in turn. When no column in a row is safe, it removes the previous "
+					"queen and moves that one to its next column. Most of the possible boards are never looked at.",
+					"O(N!) worst case", Need::No, Need::No, false, "", { sizeOption }, &runEightQueens, false },
+				{ "tsp", "Travelling salesman (TSP)", "Combinatorial search",
+					"Find the shortest round trip that visits every city exactly once and returns to the start, using the roads you "
+					"drew. The problem is NP-hard: branch and bound finds the optimum but may explore a huge number of partial tours, "
+					"while nearest neighbour is fast but can be far off. 2-opt then improves a tour by swapping pairs of edges until "
+					"no swap makes it shorter.",
+					"Exact: O(n!) worst case; nearest neighbour: O(n\xC2\xB2); 2-opt: O(n\xC2\xB2) per pass", Need::Required, Need::No, true, "distance", { methodOption }, &runTravellingSalesman } };
 		}
 
 		const char* needName(Need need)
@@ -115,6 +141,7 @@ namespace algolab
 			out += ",\"source\":" + jsonString(needName(info.source));
 			out += ",\"target\":" + jsonString(needName(info.target));
 			out += ",\"usesWeights\":" + std::string(info.usesWeights ? "true" : "false");
+			out += ",\"usesGraph\":" + std::string(info.usesGraph ? "true" : "false");
 			out += ",\"weightName\":" + jsonString(info.weightName);
 			out += ",\"options\":[";
 			for (std::size_t o = 0; o < info.options.size(); o++)
@@ -155,6 +182,8 @@ namespace algolab
 			if (keyword == "algorithm") ok = static_cast<bool>(fields >> request.algorithm);
 			else if (keyword == "heuristic") ok = static_cast<bool>(fields >> request.heuristic);
 			else if (keyword == "strategy") ok = static_cast<bool>(fields >> request.strategy);
+			else if (keyword == "method") ok = static_cast<bool>(fields >> request.method);
+			else if (keyword == "size") ok = static_cast<bool>(fields >> request.size);
 			else if (keyword == "source") ok = static_cast<bool>(fields >> request.source);
 			else if (keyword == "target") ok = static_cast<bool>(fields >> request.target);
 			else if (keyword == "scale") ok = static_cast<bool>(fields >> request.heuristicScale);
@@ -204,6 +233,14 @@ namespace algolab
 		{
 			return "Unknown algorithm '" + request.algorithm + "'.";
 		}
+		if (!info->usesGraph)
+		{
+			if (info->id == "queens" && (request.size < 1 || request.size > 10))
+			{
+				return "The board size must be between 1 and 10.";
+			}
+			return {};
+		}
 		const Graph& g = request.graph;
 		const int n = g.size();
 		if (n == 0)
@@ -241,6 +278,13 @@ namespace algolab
 		if (info->category == "Network flow" && request.source == request.target)
 		{
 			return "The source and the target must be different vertices.";
+		}
+		if (info->id == "tsp")
+		{
+			if (g.directed) return "The travelling salesman problem here uses two-way roads. Untick \"Directed edges\".";
+			if (n < 3) return "Add at least three cities.";
+			if (n > maxCities) return "Use at most " + std::to_string(maxCities) + " cities: the exact search grows factorially.";
+			if (request.method != "exact" && request.method != "nearest" && request.method != "2opt") return "Unknown TSP method.";
 		}
 		return {};
 	}

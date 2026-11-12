@@ -30,6 +30,8 @@
   --p3: #e08a12;
   --p4: #8a55dd;
   --p5: #12a3a3;
+  --sq-light: #eef1f6;
+  --sq-dark: #c3ccdb;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -52,6 +54,8 @@
     --visited-stroke: #6fa0e6;
     --cut-fill: #3a2c5c;
     --saturated: #a9c4ff;
+    --sq-light: #2b3240;
+    --sq-dark: #1b2028;
   }
 }
 
@@ -324,6 +328,20 @@ kbd { font: 12px ui-monospace, Consolas, monospace; border: 1px solid var(--bord
 .n-path3 { --f: var(--p3); --s: var(--p3); --t: #fff; }
 .n-path4 { --f: var(--p4); --s: var(--p4); --t: #fff; }
 .n-path5 { --f: var(--p5); --s: var(--p5); --t: #fff; }
+
+/* ---- Board (N-queens) ------------------------------------------------------------------- */
+
+.square rect { fill: var(--sq-light); }
+.square.dark rect { fill: var(--sq-dark); }
+.square.n-visited.light rect { fill: color-mix(in srgb, var(--cycle) 14%, var(--sq-light)); }
+.square.n-visited.dark rect { fill: color-mix(in srgb, var(--cycle) 24%, var(--sq-dark)); }
+.square.n-path rect { fill: var(--path); }
+.square.n-current rect { fill: var(--current); }
+.square.n-cycle rect { fill: var(--cycle); }
+.square text { text-anchor: middle; dominant-baseline: central; fill: var(--text); pointer-events: none; }
+.square.n-path text, .square.n-current text, .square.n-cycle text { fill: #fff; }
+.coord { fill: var(--muted); font-size: 13px; text-anchor: middle; dominant-baseline: central; }
+.frame { fill: none; stroke: var(--node-stroke); stroke-width: 1.5; }
 
 .rubber { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 5 5; pointer-events: none; }
 .emptyNote { fill: var(--muted); font-size: 16px; text-anchor: middle; }

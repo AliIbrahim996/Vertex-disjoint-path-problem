@@ -58,7 +58,10 @@ namespace algolab
 		//! Register a graph to draw. Most algorithms use one view; vertex-disjoint paths
 		//! uses two (the original graph and the split flow network).
 		//! @returns the view index. The first view added becomes the active one.
-		int addView(const std::string& title, const Graph& graph, int source, int target, bool showEdgeLabels);
+		//! `layout` is "graph" (vertices drawn at their positions) or "board" (an N x N grid of squares,
+		//! vertex i at column x, row y).
+		int addView(const std::string& title, const Graph& graph, int source, int target, bool showEdgeLabels,
+			const std::string& layout = "graph");
 
 		//! Switch the view that the state setters below and the next steps refer to.
 		void useView(int view);
@@ -80,7 +83,23 @@ namespace algolab
 		void panel(const std::string& title, const std::vector<std::string>& items);
 
 		//! Take a snapshot. `line` is the 0-based pseudocode line to highlight (-1 for none).
-		void step(int line, const std::string& message);
+		//! Once the step limit is reached, snapshots are dropped unless `force` is set.
+		void step(int line, const std::string& message, bool force = false);
+
+		//! Stop recording ordinary steps after `limit` of them (0 = no limit). For searches that can
+		//! take far more steps than anyone would watch.
+		void setStepLimit(std::size_t limit) { stepLimit_ = limit; }
+		std::size_t skippedSteps() const { return skipped_; }
+
+		//! false once the step limit is reached: an algorithm can then skip preparing a snapshot
+		//! that would be dropped, and call skipStep() instead of step().
+		bool recording() const { return !stepLimit_ || steps_.size() < stepLimit_; }
+		void skipStep() { skipped_++; }
+
+		//! What a state means for this algorithm, shown in the legend (for example the node state
+		//! "path" -> "Queen"). Vertex and edge states are labelled separately.
+		void nodeLegend(const std::string& state, const std::string& text);
+		void edgeLegend(const std::string& state, const std::string& text);
 
 		void setPseudocode(const std::vector<std::string>& lines) { pseudocode_ = lines; }
 		void setSummary(const std::string& summary) { summary_ = summary; }
@@ -98,6 +117,7 @@ namespace algolab
 		struct View
 		{
 			std::string title;
+			std::string layout;
 			Graph graph;
 			int source{ -1 };
 			int target{ -1 };
@@ -127,6 +147,10 @@ namespace algolab
 		std::vector<std::string> pseudocode_;
 		std::string summary_;
 		std::vector<std::pair<std::string, std::string>> results_;
+		std::vector<std::pair<std::string, std::string>> nodeLegend_;
+		std::vector<std::pair<std::string, std::string>> edgeLegend_;
+		std::size_t stepLimit_{ 0 };
+		std::size_t skipped_{ 0 };
 	};
 
 	//! Quote and escape a string for JSON.

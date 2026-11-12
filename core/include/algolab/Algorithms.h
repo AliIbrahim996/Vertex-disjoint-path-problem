@@ -25,6 +25,10 @@ namespace algolab
 		double heuristicScale{ 50.0 };
 		//! How max-flow looks for augmenting paths: "bfs", "dfs" or "widest".
 		std::string strategy{ "bfs" };
+		//! Board size for the N-queens puzzle.
+		int size{ 8 };
+		//! TSP method: "exact", "nearest" or "2opt".
+		std::string method{ "exact" };
 	};
 
 	enum class Need { No, Optional, Required };
@@ -57,6 +61,8 @@ namespace algolab
 		std::string weightName; //!< "weight" or "capacity"
 		std::vector<Option> options;
 		void (*run)(const Request&, Tracer&) { nullptr };
+		//! false for puzzles that do not work on the drawn graph (N-queens).
+		bool usesGraph{ true };
 	};
 
 	const std::vector<AlgorithmInfo>& catalog();
@@ -81,5 +87,7 @@ namespace algolab
 	void runGreedyBestFirst(const Request& request, Tracer& tracer);
 	void runMaxFlow(const Request& request, Tracer& tracer);
 	void runVertexDisjointPaths(const Request& request, Tracer& tracer);
+	void runEightQueens(const Request& request, Tracer& tracer);
+	void runTravellingSalesman(const Request& request, Tracer& tracer);
 }
 #endif // !ALGOLAB_ALGORITHMS_H

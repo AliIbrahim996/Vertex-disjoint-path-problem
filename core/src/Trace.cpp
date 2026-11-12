@@ -47,6 +47,31 @@ namespace algolab
 			out += ']';
 		}
 
+		//! Set `key` to `value`, replacing an earlier entry with the same key.
+		void upsert(std::vector<std::pair<std::string, std::string>>& entries, const std::string& key, const std::string& value)
+		{
+			for (auto& entry : entries)
+			{
+				if (entry.first == key)
+				{
+					entry.second = value;
+					return;
+				}
+			}
+			entries.emplace_back(key, value);
+		}
+
+		void appendObject(std::string& out, const std::vector<std::pair<std::string, std::string>>& entries)
+		{
+			out += '{';
+			for (std::size_t i = 0; i < entries.size(); i++)
+			{
+				if (i) out += ',';
+				out += jsonString(entries[i].first) + ":" + jsonString(entries[i].second);
+			}
+			out += '}';
+		}
+
 		std::string jsonNumber(double value)
 		{
 			char buffer[48];
@@ -94,10 +119,12 @@ namespace algolab
 		return out;
 	}
 
-	int Tracer::addView(const std::string& title, const Graph& graph, int source, int target, bool showEdgeLabels)
+	int Tracer::addView(const std::string& title, const Graph& graph, int source, int target, bool showEdgeLabels,
+		const std::string& layout)
 	{
 		View view;
 		view.title = title;
+		view.layout = layout;
 		view.graph = graph;
 		view.source = source;
 		view.target = target;
@@ -139,8 +166,16 @@ namespace algolab
 		panels_.emplace_back(title, items);
 	}
 
-	void Tracer::step(int line, const std::string& message)
+	void Tracer::nodeLegend(const std::string& state, const std::string& text) { upsert(nodeLegend_, state, text); }
+	void Tracer::edgeLegend(const std::string& state, const std::string& text) { upsert(edgeLegend_, state, text); }
+
+	void Tracer::step(int line, const std::string& message, bool force)
 	{
+		if (!force && stepLimit_ && steps_.size() >= stepLimit_)
+		{
+			skipped_++;
+			return;
+		}
 		const View& view = views_[active_];
 		Step step;
 		step.view = active_;
@@ -154,18 +189,7 @@ namespace algolab
 		steps_.push_back(std::move(step));
 	}
 
-	void Tracer::result(const std::string& key, const std::string& value)
-	{
-		for (auto& existing : results_)
-		{
-			if (existing.first == key)
-			{
-				existing.second = value;
-				return;
-			}
-		}
-		results_.emplace_back(key, value);
-	}
+	void Tracer::result(const std::string& key, const std::string& value) { upsert(results_, key, value); }
 
 	std::string Tracer::result(const std::string& key) const
 	{
@@ -201,13 +225,14 @@ namespace algolab
 		appendStrings(out, pseudocode_);
 		out += ",\"summary\":" + jsonString(summary_);
 
-		out += ",\"result\":{";
-		for (std::size_t i = 0; i < results_.size(); i++)
-		{
-			if (i) out += ',';
-			out += jsonString(results_[i].first) + ":" + jsonString(results_[i].second);
-		}
+		out += ",\"result\":";
+		appendObject(out, results_);
+		out += ",\"legend\":{\"node\":";
+		appendObject(out, nodeLegend_);
+		out += ",\"edge\":";
+		appendObject(out, edgeLegend_);
 		out += "}";
+		out += ",\"skippedSteps\":" + std::to_string(skipped_);
 
 		out += ",\"views\":[";
 		for (std::size_t i = 0; i < views_.size(); i++)
@@ -215,6 +240,7 @@ namespace algolab
 			const View& view = views_[i];
 			if (i) out += ',';
 			out += "{\"title\":" + jsonString(view.title);
+			out += ",\"layout\":" + jsonString(view.layout);
 			out += ",\"directed\":" + std::string(view.graph.directed ? "true" : "false");
 			out += ",\"showEdgeLabels\":" + std::string(view.showEdgeLabels ? "true" : "false");
 			out += ",\"source\":" + std::to_string(view.source);
