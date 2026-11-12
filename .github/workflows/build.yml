@@ -35,6 +35,8 @@ jobs:
           emcmake cmake -S . -B build/wasm
           cmake --build build/wasm
           ctest --test-dir build/wasm --output-on-failure
+      - name: Check the real-world demos
+        run: node tests/demos.js
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web

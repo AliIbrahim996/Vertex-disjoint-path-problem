@@ -7,7 +7,7 @@
   const WIDTH = 900;
   const HEIGHT = 520;
   const RADIUS = 20;
-  const HEURISTIC_SCALE = 50; // canvas units per unit of edge weight
+  const REQUEST = window.ALGOLAB_REQUEST; // request.js: request text and length weights
   const SVGNS = 'http://www.w3.org/2000/svg';
 
   const $ = id => document.getElementById(id);
@@ -22,6 +22,8 @@
     target: -1,
     options: {},
     sampleId: null,
+    demo: null,        // the real-world demo being shown: { algo, use } from applications.js
+    usesAlgo: null,    // algorithm whose real-world uses are listed
     edited: false,     // the user changed the example graph
     tool: 'move',
     pendingFrom: null, // first endpoint chosen with the "Add edge" tool
@@ -38,7 +40,9 @@
   const formatNumber = value => String(Math.round(value * 100) / 100);
   const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-  const lengthWeight = (a, b) => Math.max(1, Math.ceil(distance(a, b) / HEURISTIC_SCALE));
+  // Canvas units per unit of weight. A demo may set its own with a "scale" option.
+  const heuristicScale = () => Number(state.options.scale) || REQUEST.DEFAULT_SCALE;
+  const lengthWeight = (a, b) => REQUEST.lengthWeight(a, b, heuristicScale());
 
   function nextLabel() {
     const used = new Set(state.graph.nodes.map(n => n.label));
@@ -52,27 +56,21 @@
 
   // ---- Talking to the C++ core ---------------------------------------------------------------
 
-  function buildRequest() {
-    const g = state.graph;
-    const lines = [
-      'algorithm ' + state.algo.id,
-      'directed ' + (g.directed ? 1 : 0),
-      'source ' + state.source,
-      'target ' + state.target,
-      'scale ' + HEURISTIC_SCALE,
-    ];
-    for (const [key, value] of Object.entries(state.options)) lines.push(key + ' ' + value);
-    if (state.algo.usesGraph) {
-      for (const n of g.nodes) lines.push(`node ${Math.round(n.x)} ${Math.round(n.y)} ${n.label}`);
-      for (const e of g.edges) lines.push(`edge ${e.u} ${e.v} ${e.w}`);
-    }
-    return lines.join('\n') + '\n';
+  // The request for the current graph and options. `overrides` replaces the algorithm or options,
+  // for example { algorithm: 'dijkstra' } to compare a demo's run with another algorithm.
+  function buildRequest(overrides = {}) {
+    const { algorithm = state.algo.id, ...options } = { ...state.options, ...overrides };
+    return REQUEST.requestText({
+      algorithm, graph: state.graph, source: state.source, target: state.target, options, usesGraph: state.algo.usesGraph,
+    });
   }
+
+  const runCore = request => JSON.parse(state.core.ccall('algolab_run', 'string', ['string'], [request]));
 
   function runSimulation() {
     stopPlaying();
     closeWeightEditor();
-    const result = JSON.parse(state.core.ccall('algolab_run', 'string', ['string'], [buildRequest()]));
+    const result = runCore(buildRequest());
     if (result.error) {
       showError(result.error);
       return;
@@ -98,23 +96,35 @@
 
   // ---- Editing the graph ---------------------------------------------------------------------
 
+  // Stop showing a real-world demo, and drop the options it added that the algorithm does not
+  // offer (such as its own heuristic scale). The graph stays as it is.
+  function leaveDemo() {
+    state.demo = null;
+    const offered = new Set(state.algo.options.map(o => o.key));
+    for (const key of Object.keys(state.options)) if (!offered.has(key)) delete state.options[key];
+  }
+
   function loadSample(id) {
     const sample = window.ALGOLAB_SAMPLES.find(s => s.id === id);
     if (!sample) return;
-    const nodes = sample.nodes.map(([label, x, y]) => ({ label, x, y }));
-    state.graph = {
-      directed: sample.directed,
-      nodes,
-      edges: sample.edges.map(([u, v, w]) => ({ u, v, w: sample.geometric ? lengthWeight(nodes[u], nodes[v]) : w })),
-    };
+    leaveDemo();
+    loadGraph(sample);
+    state.sampleId = id;
+    renderControls();
+  }
+
+  // Replace the graph with one in the samples.js format (an example, or a demo from applications.js).
+  function loadGraph(sample) {
+    state.graph = REQUEST.graphFromSample(sample, heuristicScale());
     state.source = sample.source;
     state.target = sample.target;
-    state.sampleId = id;
+    state.sampleId = null;
     state.edited = false;
     graphChanged(false);
   }
 
   function randomGraph() {
+    leaveDemo();
     const columns = 4, rows = 3, count = 9 + Math.floor(Math.random() * 3);
     const cells = Array.from({ length: columns * rows }, (_, i) => i).sort(() => Math.random() - 0.5).slice(0, count).sort((a, b) => a - b);
     const cellWidth = (WIDTH - 120) / columns, cellHeight = (HEIGHT - 100) / rows;
@@ -566,6 +576,9 @@
     const finished = trace && state.step === trace.steps.length - 1;
     $('resultCard').hidden = !finished || !trace.summary;
     $('result').textContent = finished ? trace.summary : '';
+    const meaning = finished ? demoMeaning(trace) : '';
+    $('meaning').innerHTML = meaning ? '<h3>What this means</h3>' + meaning : '';
+    $('meaning').hidden = !meaning;
 
     const message = $('message');
     message.classList.toggle('idle', !step);
@@ -600,7 +613,19 @@
     $('algoComplexity').textContent = algo.complexity;
     $('directed').checked = g.directed;
     $('graphCard').hidden = !algo.usesGraph;
-    $('sample').value = state.sampleId || '';
+    renderDemoCard();
+    let demoOption = $('sample').querySelector('option[value="demo"]');
+    if (state.demo) {
+      if (!demoOption) {
+        demoOption = document.createElement('option');
+        demoOption.value = 'demo';
+        $('sample').insertBefore(demoOption, $('sample').options[1] || null);
+      }
+      demoOption.textContent = 'Demo: ' + state.demo.use.title + (state.edited ? ' (edited)' : '');
+    } else if (demoOption) {
+      demoOption.remove();
+    }
+    $('sample').value = state.demo ? 'demo' : state.sampleId || '';
     $('geometric').hidden = !algo.usesWeights;
 
     for (const button of document.querySelectorAll('[data-tool]')) {
@@ -656,6 +681,104 @@
     return pseudocodeCache.get(key);
   }
 
+  // ---- Real-world uses and their demos -------------------------------------------------------
+
+  // The demo's explanation of a finished run (applications.js), or '' when there is none.
+  // Computed once per trace: an outcome may run the graph again with another algorithm.
+  const meanings = new WeakMap();
+  function demoMeaning(trace) {
+    const demo = state.demo;
+    const outcome = (window.ALGOLAB_OUTCOMES || {})[demo && demo.algo];
+    if (!demo || demo.algo !== state.algo.id || !outcome) return '';
+    if (!meanings.has(trace)) {
+      let html = '';
+      try {
+        html = demo.use.explain(outcome(trace, overrides => runCore(buildRequest(overrides)), state.options));
+      } catch (error) {
+        // The user may have edited the graph into something the explanation does not expect.
+        console.warn('Could not explain the demo result:', error);
+      }
+      meanings.set(trace, html);
+    }
+    return meanings.get(trace);
+  }
+
+  const applications = () => window.ALGOLAB_APPLICATIONS || {};
+
+  function renderDemoCard() {
+    const demo = state.demo;
+    $('demoCard').hidden = !demo;
+    if (!demo) return;
+    const use = demo.use;
+    $('demoField').textContent = use.field;
+    $('demoTitle').textContent = use.title;
+    $('demoStory').textContent = use.story;
+    $('demoKey').innerHTML = (use.keyHtml || '')
+      + '<dl class="keyList">' + use.key.map(([label, text]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(text)}</dd>`).join('') + '</dl>';
+    $('demoTry').innerHTML = use.tryThis ? '<b>Try this:</b> ' + escapeHtml(use.tryThis) : '';
+    $('demoTry').hidden = !use.tryThis;
+  }
+
+  function renderUses() {
+    const groups = applications();
+    const ids = state.catalog.map(a => a.id).filter(id => groups[id]);
+    if (!ids.includes(state.usesAlgo)) state.usesAlgo = ids[0] || null;
+    const nameOf = id => (state.catalog.find(a => a.id === id) || { name: id }).name;
+    $('usesPicker').innerHTML = ids.map(id =>
+      `<button type="button" data-uses="${id}" class="${id === state.usesAlgo ? 'active' : ''}" aria-pressed="${id === state.usesAlgo}">${escapeHtml(nameOf(id))}</button>`).join('')
+      + (ids.length < state.catalog.length ? '<span class="usesMore">More algorithms coming soon</span>' : '');
+    const group = groups[state.usesAlgo];
+    $('usesIntro').textContent = group ? group.intro : '';
+    $('usesGrid').innerHTML = group ? group.uses.map(use => `
+      <article class="card useCard">
+        <p class="demoField">${escapeHtml(use.field)}</p>
+        <h3>${escapeHtml(use.title)}</h3>
+        <p>${escapeHtml(use.summary)}</p>
+        <dl class="keyList">${use.mapping.map(([term, text]) => `<dt>${escapeHtml(term)}</dt><dd>${escapeHtml(text)}</dd>`).join('')}</dl>
+        <button type="button" class="primary" data-demo="${use.id}">Run the demo</button>
+      </article>`).join('') : '';
+  }
+
+  // Load a demo into the simulator and run it. Launched from the list, it adds a history entry,
+  // so the browser's Back button returns to the list.
+  function startDemo(algoId, useId) {
+    const group = applications()[algoId];
+    const use = group && group.uses.find(u => u.id === useId);
+    const algo = state.catalog.find(a => a.id === algoId);
+    if (!use || !algo) return;
+    state.algo = algo;
+    $('algo').value = algoId;
+    state.options = {};
+    for (const option of algo.options) state.options[option.key] = option.choices[0].id;
+    Object.assign(state.options, use.options || {});
+    state.demo = { algo: algoId, use };
+    loadGraph(use.graph);
+    if (location.hash === '#uses') history.pushState(null, '', location.pathname + location.search);
+    showView('simulator');
+    runSimulation();
+    window.scrollTo({ top: 0 });
+  }
+
+  // Switch between the simulator and the real-world uses. The URL hash keeps the choice: the tabs
+  // are links, so each switch is a history entry; this only tidies an empty "#" away.
+  function showView(name) {
+    const uses = name === 'uses';
+    $('usesView').hidden = !uses;
+    $('simulatorView').hidden = uses;
+    $('footer').hidden = uses;
+    for (const [id, active] of [['tabSimulator', !uses], ['tabUses', uses]]) {
+      $(id).classList.toggle('active', active);
+      $(id).setAttribute('aria-selected', String(active));
+    }
+    const hash = uses ? '#uses' : '';
+    if (location.hash !== hash) history.replaceState(null, '', hash || location.pathname + location.search);
+    if (uses) {
+      stopPlaying();
+      renderPlayer();
+      renderUses();
+    }
+  }
+
   // ---- Playback ------------------------------------------------------------------------------
 
   function goTo(index) {
@@ -699,6 +822,7 @@
   // ---- Wiring --------------------------------------------------------------------------------
 
   function selectAlgorithm(id) {
+    if (state.algo) leaveDemo();
     state.algo = state.catalog.find(a => a.id === id);
     state.options = {};
     for (const option of state.algo.options) state.options[option.key] = option.choices[0].id;
@@ -718,10 +842,21 @@
 
   function bind() {
     $('algo').addEventListener('change', event => selectAlgorithm(event.target.value));
-    $('sample').addEventListener('change', event => { if (event.target.value) loadSample(event.target.value); });
+    $('sample').addEventListener('change', event => {
+      const id = event.target.value;
+      if (id === 'demo' && state.demo) startDemo(state.demo.algo, state.demo.use.id);
+      else if (id) loadSample(id);
+      else if (state.demo) {
+        // "Custom graph": keep the demo's graph to edit freely, as an ordinary graph.
+        leaveDemo();
+        state.edited = true;
+        renderAll();
+      }
+    });
     $('directed').addEventListener('change', event => setDirected(event.target.checked));
     $('random').addEventListener('click', randomGraph);
     $('clear').addEventListener('click', () => {
+      leaveDemo();
       state.graph = { directed: state.graph.directed, nodes: [], edges: [] };
       state.source = state.target = -1;
       state.tool = 'node';
@@ -733,6 +868,23 @@
       graphChanged();
     });
     $('run').addEventListener('click', runSimulation);
+
+    const followHash = () => showView(location.hash === '#uses' ? 'uses' : 'simulator');
+    window.addEventListener('hashchange', followHash);
+    window.addEventListener('popstate', followHash);
+    $('usesPicker').addEventListener('click', event => {
+      const button = event.target.closest('[data-uses]');
+      if (button) { state.usesAlgo = button.dataset.uses; renderUses(); }
+    });
+    $('usesGrid').addEventListener('click', event => {
+      const button = event.target.closest('[data-demo]');
+      if (button) startDemo(state.usesAlgo, button.dataset.demo);
+    });
+    $('demoReset').addEventListener('click', () => { if (state.demo) startDemo(state.demo.algo, state.demo.use.id); });
+    $('demoBack').addEventListener('click', () => {
+      if (state.demo) state.usesAlgo = state.demo.algo;
+      if (location.hash === '#uses') showView('uses'); else location.hash = 'uses';
+    });
     $('edit').addEventListener('click', () => { clearTrace(); renderAll(); });
 
     $('runFields').addEventListener('change', event => {
@@ -762,7 +914,7 @@
     $('speed').addEventListener('change', () => { if (state.timer) startPlaying(); });
 
     document.addEventListener('keydown', event => {
-      if (!state.trace || event.target.closest('input, select, textarea')) return;
+      if (!state.trace || !$('usesView').hidden || event.target.closest('input, select, textarea')) return;
       // A focused button already toggles itself on space; don't toggle playback a second time.
       if (event.key === ' ' && event.target.closest('button')) return;
       if (event.key === 'ArrowRight') { manualStep(state.step + 1); event.preventDefault(); }
@@ -801,6 +953,7 @@
 
     bind();
     selectAlgorithm(state.catalog[0].id);
+    showView(location.hash === '#uses' ? 'uses' : 'simulator');
   }
 
   start();

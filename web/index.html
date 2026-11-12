@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AlgoLab: graph algorithms, step by step</title>
-  <meta name="description" content="Draw a graph and watch BFS, DFS, cycle detection, Dijkstra, A*, greedy search, max-flow and vertex-disjoint paths run step by step. The algorithms are C++ compiled to WebAssembly.">
+  <meta name="description" content="Draw a graph and watch BFS, DFS, cycle detection, Dijkstra, A*, greedy search, max-flow and vertex-disjoint paths run step by step, with real-world demos. The algorithms are C++ compiled to WebAssembly.">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -17,13 +17,40 @@
       <h1>AlgoLab</h1>
       <span class="tagline">Graph algorithms, step by step</span>
     </div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <a href="#" id="tabSimulator" role="tab" class="tab">Simulator</a>
+      <a href="#uses" id="tabUses" role="tab" class="tab">Real-world uses</a>
+    </nav>
     <span class="engine" title="Every algorithm runs in a C++ core compiled to WebAssembly">C++ core · WebAssembly</span>
   </header>
 
   <div id="fatal" class="fatal" hidden></div>
 
-  <main class="layout">
+  <main class="uses" id="usesView" hidden>
+    <div class="usesHead">
+      <h2>Where these algorithms are used</h2>
+      <p>Each card turns a real problem into a graph. Press <b>Run the demo</b> to watch the C++ algorithm solve it step by step, then read what the answer means.</p>
+      <div class="usesPicker" id="usesPicker" role="group" aria-label="Algorithm"></div>
+      <p id="usesIntro" class="usesIntro"></p>
+    </div>
+    <div class="usesGrid" id="usesGrid"></div>
+  </main>
+
+  <main class="layout" id="simulatorView">
     <aside class="side">
+      <section class="card demo" id="demoCard" hidden>
+        <h2>Real-world demo</h2>
+        <p class="demoField" id="demoField"></p>
+        <h3 class="demoTitle" id="demoTitle"></h3>
+        <p id="demoStory"></p>
+        <div id="demoKey"></div>
+        <p class="demoTry" id="demoTry"></p>
+        <div class="buttons">
+          <button type="button" id="demoReset">Reset demo</button>
+          <button type="button" id="demoBack">All real-world uses</button>
+        </div>
+      </section>
+
       <section class="card">
         <h2>Algorithm</h2>
         <select id="algo" aria-label="Algorithm"></select>
@@ -107,6 +134,7 @@
       <section class="card" id="resultCard" hidden>
         <h2>Result</h2>
         <p id="result" class="result"></p>
+        <div id="meaning" class="meaning" hidden></div>
       </section>
       <section class="card" id="legendCard" hidden>
         <h2>Legend</h2>
@@ -115,13 +143,15 @@
     </aside>
   </main>
 
-  <footer class="foot">
-    Build a graph with the tools above the canvas, pick an algorithm, and press <b>Run simulation</b>.
+  <footer class="foot" id="footer">
+    Build a graph with the tools above the canvas, pick an algorithm, and press <b>Run simulation</b>, or open <a href="#uses">Real-world uses</a> for ready-made demos.
     Keys: <kbd>←</kbd> <kbd>→</kbd> step, <kbd>space</kbd> play or pause.
   </footer>
 
   <script src="wasm/algolab.js" onerror="window.ALGOLAB_MISSING = true"></script>
+  <script src="js/request.js"></script>
   <script src="js/samples.js"></script>
+  <script src="js/applications.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

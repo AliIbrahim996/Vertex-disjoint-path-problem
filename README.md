@@ -38,6 +38,38 @@ edge weight to its length on the canvas, which makes the straight-line heuristic
 3. Choose the source and target, then press **Run simulation**.
 4. Step with the transport buttons, the slider, or the keys `←` `→` (step) and `space` (play/pause).
 
+## Real-world uses
+
+The **Real-world uses** tab shows where an algorithm is used outside the classroom, each with a
+demo that loads into the simulator and runs.
+
+**Maximum flow:**
+
+| Field | Demo | What the flow or the cut means |
+| --- | --- | --- |
+| Transportation & logistics | freight from a port to a hub | trucks per hour, and the bottleneck roads |
+| Bipartite matching | applicants to open positions | who gets which job |
+| Image segmentation | separating an object from its background | which pixels are the object |
+| Disaster management | evacuating a building | people per minute, and the minutes needed |
+| Project selection | choosing profitable projects | the projects to take on and the best profit |
+| Water & power distribution | supplying a city with water | which district goes short, and why |
+| Sports analytics | is a team mathematically eliminated? | the answer, with a proof from the cut |
+| Airline scheduling | assigning crews to flights | the roster and the unstaffed flights |
+
+**A\* search:** each explanation also runs Dijkstra on the same map to show how much the heuristic saved.
+
+| Field | Demo | What it shows |
+| --- | --- | --- |
+| Navigation apps | driving directions across town | the shortest route while skipping the part of town behind you |
+| Video games | a character walking around walls | Manhattan distance on a tile grid |
+| Robotics & warehouses | a robot avoiding a busy aisle | weights as time: the detour is faster |
+| Puzzles & mazes | getting out of a maze | A\* backing out of a tempting dead end |
+| Ride hailing & delivery | a taxi in a grid city with roadworks | a closer heuristic means less searching |
+| Route planning pitfalls | travel time on a motorway | a heuristic in the wrong unit overestimates and misses the fastest route |
+
+Each demo explains its result in real-world terms. The explanation is computed from the finished
+run, so it stays right when you edit the graph, as each demo's "Try this" suggests.
+
 ## Building
 
 You need [Emscripten](https://emscripten.org/docs/getting_started/downloads.html) and CMake 3.16+.
@@ -74,7 +106,10 @@ core/include/algolab/   public headers: Graph, Tracer, FlowNetwork, Algorithms
 core/src/               implementation; one file per algorithm in core/src/algorithms/
 wasm/api.cpp            the two functions exported to JavaScript
 tests/tests.cpp         dependency-free tests of the algorithm results
-web/                    the page: index.html, style.css, js/app.js, js/samples.js
+tests/demos.js          runs every real-world demo through the wasm build (node tests/demos.js)
+web/                    the page: index.html, style.css, js/app.js, js/samples.js,
+                        js/applications.js (the real-world uses and their demos),
+                        js/request.js (request text, shared with tests/demos.js)
 ```
 
 ### How the two halves talk
@@ -114,6 +149,15 @@ the pseudocode line and the explanation. Full snapshots are what make stepping b
 3. Add the source file to `CMakeLists.txt` and a test to `tests/tests.cpp`.
 
 The page picks the new algorithm up from the catalogue; no JavaScript changes are needed.
+
+### Adding a real-world demo
+
+Real-world uses live in `web/js/applications.js`, grouped by algorithm id. Each one has the card
+text, how the problem maps onto the graph, a graph in the same format as `samples.js`, and an
+`explain(outcome)` function that turns the finished run into a plain-language answer. The
+`outcome` comes from `ALGOLAB_OUTCOMES[algorithm](trace, run)`, which reads the trace (and may use `run` to
+run the same graph with another algorithm for comparison); the first demos for a
+new algorithm need an entry there too. Add the expected answer to `tests/demos.js`.
 
 ## License
 
